@@ -1,0 +1,18 @@
+{
+  "ignore": [
+    "temp/*",
+    "uploads/*",
+    "data/*",
+    "*.log",
+    "*.js.map"
+  ],
+  "watch": [
+    "*.js",
+    "config/**/*.js",
+    "controllers/**/*.js",
+    "middleware/**/*.js",
+    "routes/**/*.js",
+    "services/**/*.js",
+    "utils/**/*.js"
+  ]
+}
