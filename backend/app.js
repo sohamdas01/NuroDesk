@@ -11,10 +11,21 @@ import collectionRoutes from './routes/collection.js';
 
 const app = express();
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL
+];
+
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
   credentials: true,
 }));
+
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
