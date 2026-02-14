@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: neurodesk-backend
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: |
+      cd backend
+      pip install --break-system-packages yt-dlp
+      npm install --legacy-peer-deps
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 1000
