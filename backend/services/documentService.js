@@ -18,6 +18,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Write cookies from env variable to temp file
+function getCookiesFile() {
+  const cookiesContent = process.env.YOUTUBE_COOKIES;
+  if (!cookiesContent) return null;
+
+  const cookiePath = path.join(process.cwd(), 'temp_cookies.txt');
+  fs.writeFileSync(cookiePath, cookiesContent);
+  return cookiePath;
+}
+
+
 
 // Process PDF file
 
@@ -356,15 +367,33 @@ async function downloadYouTubeAudio(videoId) {
 
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-    const command = [
-      'yt-dlp',
-      '--no-warnings',
-      '--no-check-certificates',
-      '--prefer-free-formats',
-      '--extractor-args', 'youtube:player_client=android,music',
-      '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
-      '-f', 'bestaudio/best',
-      '-x',
+    // const command = [
+    //   'yt-dlp',
+    //   '--no-warnings',
+    //   '--no-check-certificates',
+    //   '--prefer-free-formats',
+    //   '--extractor-args', 'youtube:player_client=android,music',
+    //   '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
+    //   '-f', 'bestaudio/best',
+    //   '-x',
+    //   '--audio-format', 'mp3',
+    //   '--audio-quality', '5',
+    //   '--no-playlist',
+    //   '--max-filesize', '26M',
+    //   '-o', `"${outputPath}"`,
+    //   `"${videoUrl}"`
+    // ].join(' ');
+
+    const cookiesFile = getCookiesFile();
+
+const command = [
+  'yt-dlp',
+  '--no-warnings',
+  '--no-check-certificates',
+  '--extractor-args', 'youtube:player_client=android,music',
+  ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
+  '-f', 'bestaudio/best',
+   '-x',
       '--audio-format', 'mp3',
       '--audio-quality', '5',
       '--no-playlist',
@@ -372,6 +401,7 @@ async function downloadYouTubeAudio(videoId) {
       '-o', `"${outputPath}"`,
       `"${videoUrl}"`
     ].join(' ');
+
 
     try {
       await execPromise(command, {
@@ -381,14 +411,30 @@ async function downloadYouTubeAudio(videoId) {
     } catch (dlError) {
       console.log(` Android client failed, trying iOS client...`);
 
+      // const iosCommand = [
+      //   'yt-dlp',
+      //   '--no-warnings',
+      //   '--no-check-certificates',
+      //   '--extractor-args', 'youtube:player_client=android_embedded',
+      //  '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
+      //   '-f', 'bestaudio/best',
+      //   '-x',
+      //   '--audio-format', 'mp3',
+      //   '--audio-quality', '5',
+      //   '--no-playlist',
+      //   '--max-filesize', '26M',
+      //   '-o', `"${outputPath}"`,
+      //   `"${videoUrl}"`
+      // ].join(' ');
+
       const iosCommand = [
-        'yt-dlp',
-        '--no-warnings',
-        '--no-check-certificates',
-        '--extractor-args', 'youtube:player_client=android_embedded',
-       '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
-        '-f', 'bestaudio/best',
-        '-x',
+  'yt-dlp',
+  '--no-warnings',
+  '--no-check-certificates',
+  '--extractor-args', 'youtube:player_client=android,music',
+  ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
+  '-f', 'bestaudio/best',
+   '-x',
         '--audio-format', 'mp3',
         '--audio-quality', '5',
         '--no-playlist',
