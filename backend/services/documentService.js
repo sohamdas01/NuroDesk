@@ -384,25 +384,41 @@ async function downloadYouTubeAudio(videoId) {
     //   `"${videoUrl}"`
     // ].join(' ');
 
-    const cookiesFile = getCookiesFile();
+//     const cookiesFile = getCookiesFile();
+
+// const command = [
+//   'yt-dlp',
+//   '--no-warnings',
+//   '--no-check-certificates',
+//   '--extractor-args', 'youtube:player_client=android,music',
+//   ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
+//   '-f', 'bestaudio/best',
+//    '-x',
+//       '--audio-format', 'mp3',
+//       '--audio-quality', '5',
+//       '--no-playlist',
+//       '--max-filesize', '26M',
+//       '-o', `"${outputPath}"`,
+//       `"${videoUrl}"`
+//     ].join(' ');
+
+const cookiesFile = "/opt/render/project/src/backend/cookies.txt";
 
 const command = [
-  'yt-dlp',
-  '--no-warnings',
-  '--no-check-certificates',
-  '--extractor-args', 'youtube:player_client=android,music',
-  ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
-  '-f', 'bestaudio/best',
-   '-x',
-      '--audio-format', 'mp3',
-      '--audio-quality', '5',
-      '--no-playlist',
-      '--max-filesize', '26M',
-      '-o', `"${outputPath}"`,
-      `"${videoUrl}"`
-    ].join(' ');
-
-
+  "yt-dlp",
+  "--no-warnings",
+  "--no-check-certificates",
+  "--extractor-args", "youtube:player_client=android,music",
+  "--cookies", cookiesFile,
+  "-f", "bestaudio/best",
+  "-x",
+  "--audio-format", "mp3",
+  "--audio-quality", "5",
+  "--no-playlist",
+  "--max-filesize", "26M",
+  "-o", `"${outputPath}"`,
+  `"${videoUrl}"`
+].join(" ");
     try {
       await execPromise(command, {
         timeout: 300000,
