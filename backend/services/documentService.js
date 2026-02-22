@@ -19,13 +19,45 @@ const openai = new OpenAI({
 });
 
 // Write cookies from env variable to temp file
+// function getCookiesFile() {
+//   const cookiesContent = process.env.YOUTUBE_COOKIES;
+//   if (!cookiesContent) return null;
+
+//   const cookiePath = path.join(process.cwd(), 'temp_cookies.txt');
+//   fs.writeFileSync(cookiePath, cookiesContent);
+//   return cookiePath;
+// }
+
 function getCookiesFile() {
   const cookiesContent = process.env.YOUTUBE_COOKIES;
-  if (!cookiesContent) return null;
-
-  const cookiePath = path.join(process.cwd(), 'temp_cookies.txt');
-  fs.writeFileSync(cookiePath, cookiesContent);
-  return cookiePath;
+  
+  if (!cookiesContent) {
+    if (process.env.NODE_ENV === 'production') {
+      console.log('⚠️ YOUTUBE_COOKIES not set in production - downloads may fail');
+    }
+    return null;
+  }
+  
+  try {
+    let cleanedContent = cookiesContent
+      .trim()
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, '\n');
+    
+    if (!cleanedContent.includes('# Netscape HTTP Cookie File')) {
+      cleanedContent = '# Netscape HTTP Cookie File\n# http://curl.haxx.se/rfc/cookie_spec.html\n' + cleanedContent;
+    }
+    
+    const cookiePath = path.join(process.cwd(), 'temp_cookies.txt');
+    fs.writeFileSync(cookiePath, cleanedContent);
+    
+    console.log(`✅ Cookies file created: ${fs.statSync(cookiePath).size} bytes`);
+    return cookiePath;
+    
+  } catch (error) {
+    console.error('❌ Failed to create cookies file:', error.message);
+    return null;
+  }
 }
 
 
@@ -345,169 +377,6 @@ async function tryGetCaptions(videoId) {
 
 // Download YouTube audio using yt-dlp 
 
-// async function downloadYouTubeAudio(videoId) {
-//   let outputPath = null;
-
-//   try {
-//     const outputDir = path.join(process.cwd(), 'temp_audio');
-//     if (!fs.existsSync(outputDir)) {
-//       fs.mkdirSync(outputDir, { recursive: true });
-//     }
-
-//     outputPath = path.join(outputDir, `${videoId}.mp3`);
-
-//     try {
-//       const { stdout } = await execPromise('yt-dlp --version');
-//       console.log(` yt-dlp version: ${stdout.trim()}`);
-//     } catch (error) {
-//       throw new Error(
-//         `yt-dlp is not installed or not found in PATH.`
-//       );
-//     }
-
-//     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-//     // const command = [
-//     //   'yt-dlp',
-//     //   '--no-warnings',
-//     //   '--no-check-certificates',
-//     //   '--prefer-free-formats',
-//     //   '--extractor-args', 'youtube:player_client=android,music',
-//     //   '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
-//     //   '-f', 'bestaudio/best',
-//     //   '-x',
-//     //   '--audio-format', 'mp3',
-//     //   '--audio-quality', '5',
-//     //   '--no-playlist',
-//     //   '--max-filesize', '26M',
-//     //   '-o', `"${outputPath}"`,
-//     //   `"${videoUrl}"`
-//     // ].join(' ');
-
-// //     const cookiesFile = getCookiesFile();
-
-// // const command = [
-// //   'yt-dlp',
-// //   '--no-warnings',
-// //   '--no-check-certificates',
-// //   '--extractor-args', 'youtube:player_client=android,music',
-// //   ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
-// //   '-f', 'bestaudio/best',
-// //    '-x',
-// //       '--audio-format', 'mp3',
-// //       '--audio-quality', '5',
-// //       '--no-playlist',
-// //       '--max-filesize', '26M',
-// //       '-o', `"${outputPath}"`,
-// //       `"${videoUrl}"`
-// //     ].join(' ');
-
-// const cookiesFile = "/opt/render/project/src/backend/cookies.txt";
-
-// const command = [
-//   "yt-dlp",
-//   "--no-warnings",
-//   "--no-check-certificates",
-//   "--extractor-args", "youtube:player_client=android,music",
-//   "--cookies", cookiesFile,
-//   "-f", "bestaudio/best",
-//   "-x",
-//   "--audio-format", "mp3",
-//   "--audio-quality", "5",
-//   "--no-playlist",
-//   "--max-filesize", "26M",
-//   "-o", `"${outputPath}"`,
-//   `"${videoUrl}"`
-// ].join(" ");
-//     try {
-//       await execPromise(command, {
-//         timeout: 300000,
-//         maxBuffer: 10 * 1024 * 1024
-//       });
-//     } catch (dlError) {
-//       console.log(` Android client failed, trying iOS client...`);
-
-//       // const iosCommand = [
-//       //   'yt-dlp',
-//       //   '--no-warnings',
-//       //   '--no-check-certificates',
-//       //   '--extractor-args', 'youtube:player_client=android_embedded',
-//       //  '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
-//       //   '-f', 'bestaudio/best',
-//       //   '-x',
-//       //   '--audio-format', 'mp3',
-//       //   '--audio-quality', '5',
-//       //   '--no-playlist',
-//       //   '--max-filesize', '26M',
-//       //   '-o', `"${outputPath}"`,
-//       //   `"${videoUrl}"`
-//       // ].join(' ');
-
-//       const iosCommand = [
-//   'yt-dlp',
-//   '--no-warnings',
-//   '--no-check-certificates',
-//   '--extractor-args', 'youtube:player_client=android,music',
-//   ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
-//   '-f', 'bestaudio/best',
-//    '-x',
-//         '--audio-format', 'mp3',
-//         '--audio-quality', '5',
-//         '--no-playlist',
-//         '--max-filesize', '26M',
-//         '-o', `"${outputPath}"`,
-//         `"${videoUrl}"`
-//       ].join(' ');
-
-//       await execPromise(iosCommand, {
-//         timeout: 300000,
-//         maxBuffer: 10 * 1024 * 1024
-//       });
-//     }
-
-//     if (!fs.existsSync(outputPath)) {
-//       throw new Error('Audio download failed - file not created');
-//     }
-
-//     const stats = fs.statSync(outputPath);
-//     const sizeMB = stats.size / 1024 / 1024;
-
-//     console.log(` Audio downloaded: ${sizeMB.toFixed(2)} MB`);
-
-//     if (sizeMB > 25) {
-//       throw new Error(
-//         `Audio file too large (${sizeMB.toFixed(1)}MB).\n` +
-//         `This video is very long. Try:\n` +
-//         `1. A shorter video (< 1 hour)\n` +
-//         `2. Or use a video with captions`
-//       );
-//     }
-
-//     return outputPath;
-
-//   } catch (error) {
-//     if (outputPath && fs.existsSync(outputPath)) {
-//       try {
-//         fs.unlinkSync(outputPath);
-//       } catch (cleanupError) {
-//         console.error(`Could not delete temp file:`, cleanupError.message);
-//       }
-//     }
-
-//     if (error.message.includes('403') || error.message.includes('Forbidden')) {
-//       throw new Error(
-//         `This video might be:\n` +
-//         `• Region-restricted\n` +
-//         `• Age-restricted\n` +
-//         `• Premium/Members-only content\n\n` +
-//         `Try:\n` +
-//         ` Try a different public video\n`
-//       );
-//     }
-
-//     throw error;
-//   }
-// }
 async function downloadYouTubeAudio(videoId) {
   let outputPath = null;
 
@@ -518,49 +387,45 @@ async function downloadYouTubeAudio(videoId) {
     }
 
     outputPath = path.join(outputDir, `${videoId}.mp3`);
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-    // Check yt-dlp installation
     try {
       const { stdout } = await execPromise('yt-dlp --version');
-      console.log(`yt-dlp version: ${stdout.trim()}`);
-    } catch {
-      throw new Error('yt-dlp is not installed or not found in PATH.');
+      console.log(` yt-dlp version: ${stdout.trim()}`);
+    } catch (error) {
+      throw new Error(
+        `yt-dlp is not installed or not found in PATH.`
+      );
     }
 
-    // Get cookies file if available
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    // const command = [
+    //   'yt-dlp',
+    //   '--no-warnings',
+    //   '--no-check-certificates',
+    //   '--prefer-free-formats',
+    //   '--extractor-args', 'youtube:player_client=android,music',
+    //   '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
+    //   '-f', 'bestaudio/best',
+    //   '-x',
+    //   '--audio-format', 'mp3',
+    //   '--audio-quality', '5',
+    //   '--no-playlist',
+    //   '--max-filesize', '26M',
+    //   '-o', `"${outputPath}"`,
+    //   `"${videoUrl}"`
+    // ].join(' ');
+
     const cookiesFile = getCookiesFile();
 
-    // Step 1: List formats
-    let { stdout: formatsOut } = await execPromise(
-      `yt-dlp --list-formats ${cookiesFile ? `--cookies "${cookiesFile}"` : ''} "${videoUrl}"`,
-      { timeout: 30000, maxBuffer: 5 * 1024 * 1024 }
-    );
-
-    console.log(`Available formats:\n${formatsOut}`);
-
-    // Step 2: Pick best audio format
-    let chosenFormat = 'bestaudio/best';
-    if (!formatsOut.includes('audio only')) {
-      // fallback to common audio IDs
-      if (formatsOut.includes('140')) {
-        chosenFormat = '140'; // m4a
-      } else if (formatsOut.includes('251')) {
-        chosenFormat = '251'; // webm/opus
-      }
-    }
-
-    console.log(`Chosen format: ${chosenFormat}`);
-
-    // Step 3: Build command
-    const command = [
-      'yt-dlp',
-      '--no-warnings',
-      '--no-check-certificates',
-      '--extractor-args', 'youtube:player_client=android,music',
-      ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
-      '-f', chosenFormat,
-      '-x',
+const command = [
+  'yt-dlp',
+  '--no-warnings',
+  '--no-check-certificates',
+  '--extractor-args', 'youtube:player_client=android,music',
+  ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
+  '-f', 'bestaudio/best',
+   '-x',
       '--audio-format', 'mp3',
       '--audio-quality', '5',
       '--no-playlist',
@@ -569,8 +434,51 @@ async function downloadYouTubeAudio(videoId) {
       `"${videoUrl}"`
     ].join(' ');
 
-    // Step 4: Run download
-    await execPromise(command, { timeout: 300000, maxBuffer: 10 * 1024 * 1024 });
+    try {
+      await execPromise(command, {
+        timeout: 300000,
+        maxBuffer: 10 * 1024 * 1024
+      });
+    } catch (dlError) {
+      console.log(` Android client failed, trying iOS client...`);
+
+      // const iosCommand = [
+      //   'yt-dlp',
+      //   '--no-warnings',
+      //   '--no-check-certificates',
+      //   '--extractor-args', 'youtube:player_client=android_embedded',
+      //  '--user-agent', '"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"',
+      //   '-f', 'bestaudio/best',
+      //   '-x',
+      //   '--audio-format', 'mp3',
+      //   '--audio-quality', '5',
+      //   '--no-playlist',
+      //   '--max-filesize', '26M',
+      //   '-o', `"${outputPath}"`,
+      //   `"${videoUrl}"`
+      // ].join(' ');
+
+      const iosCommand = [
+  'yt-dlp',
+  '--no-warnings',
+  '--no-check-certificates',
+  '--extractor-args', 'youtube:player_client=android,music',
+  ...(cookiesFile ? ['--cookies', `"${cookiesFile}"`] : []),
+  '-f', 'bestaudio/best',
+   '-x',
+        '--audio-format', 'mp3',
+        '--audio-quality', '5',
+        '--no-playlist',
+        '--max-filesize', '26M',
+        '-o', `"${outputPath}"`,
+        `"${videoUrl}"`
+      ].join(' ');
+
+      await execPromise(iosCommand, {
+        timeout: 300000,
+        maxBuffer: 10 * 1024 * 1024
+      });
+    }
 
     if (!fs.existsSync(outputPath)) {
       throw new Error('Audio download failed - file not created');
@@ -578,7 +486,8 @@ async function downloadYouTubeAudio(videoId) {
 
     const stats = fs.statSync(outputPath);
     const sizeMB = stats.size / 1024 / 1024;
-    console.log(`Audio downloaded: ${sizeMB.toFixed(2)} MB`);
+
+    console.log(` Audio downloaded: ${sizeMB.toFixed(2)} MB`);
 
     if (sizeMB > 25) {
       throw new Error(
@@ -593,11 +502,11 @@ async function downloadYouTubeAudio(videoId) {
 
   } catch (error) {
     if (outputPath && fs.existsSync(outputPath)) {
-      try { fs.unlinkSync(outputPath); } catch {}
-    }
-
-    if (error.message.includes('Sign in to confirm')) {
-      throw new Error('YouTube requires login. Refresh cookies and try again.');
+      try {
+        fs.unlinkSync(outputPath);
+      } catch (cleanupError) {
+        console.error(`Could not delete temp file:`, cleanupError.message);
+      }
     }
 
     if (error.message.includes('403') || error.message.includes('Forbidden')) {
@@ -606,13 +515,15 @@ async function downloadYouTubeAudio(videoId) {
         `• Region-restricted\n` +
         `• Age-restricted\n` +
         `• Premium/Members-only content\n\n` +
-        `Try a different public video`
+        `Try:\n` +
+        ` Try a different public video\n`
       );
     }
 
     throw error;
   }
 }
+
 // Transcribe audio using OpenAI Whisper API
 
 async function transcribeWithWhisper(audioFilePath) {
