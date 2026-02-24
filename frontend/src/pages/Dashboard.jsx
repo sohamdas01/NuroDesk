@@ -1,13 +1,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Send, File, Link2, FileText, Trash2, Loader2, MessageSquare, AlertCircle, LogOut, User, FileCode } from 'lucide-react';
+import { Send, File, Link2, FileText, Trash2, Loader2, MessageSquare, AlertCircle, LogOut, User, FileCode, Youtube, Globe, X, CheckCircle } from 'lucide-react';
 import { logout, selectUser, selectToken } from '../redux/slices/authSlice.js';
 import {
   uploadPDF,
   uploadCSV,
   uploadURL,
-  uploadTXT, 
+  uploadTXT,
   removeSource,
   checkServerStatus,
   selectSources,
@@ -29,7 +29,7 @@ export default function Dashboard() {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const token =
-  useSelector(selectToken) || localStorage.getItem('token');
+    useSelector(selectToken) || localStorage.getItem('token');
 
   const sources = useSelector(selectSources);
   const messages = useSelector(selectMessages);
@@ -41,9 +41,11 @@ export default function Dashboard() {
 
   const [inputMessage, setInputMessage] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const userMenuRef = useRef(null); 
+  const userMenuRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -51,7 +53,7 @@ export default function Dashboard() {
         setShowUserMenu(false);
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -82,7 +84,7 @@ export default function Dashboard() {
         dispatch(uploadPDF({ file, token }));
       } else if (type === 'csv') {
         dispatch(uploadCSV({ file, token }));
-      } else if (type === 'txt') { 
+      } else if (type === 'txt') {
         dispatch(uploadTXT({ file, token }));
       }
     }
@@ -99,7 +101,7 @@ export default function Dashboard() {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isChatLoading) return;
-    
+
     if (sources.length === 0) {
       return;
     }
@@ -121,10 +123,10 @@ export default function Dashboard() {
   };
 
   const getFileIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'pdf': return <FileText className="w-5 h-5 text-red-500" />;
       case 'csv': return <File className="w-5 h-5 text-green-500" />;
-      case 'txt': return <FileCode className="w-5 h-5 text-yellow-500" />; 
+      case 'txt': return <FileCode className="w-5 h-5 text-yellow-500" />;
       case 'link': return <Link2 className="w-5 h-5 text-blue-500" />;
       default: return <File className="w-5 h-5 text-gray-500" />;
     }
@@ -155,17 +157,16 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className={`px-3 py-1 rounded-full border text-sm ${
-                serverStatus === 'online' 
-                  ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                  : 'bg-red-500/20 text-red-400 border-red-500/30'
-              }`}>
+              <div className={`px-3 py-1 rounded-full border text-sm ${serverStatus === 'online'
+                ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                : 'bg-red-500/20 text-red-400 border-red-500/30'
+                }`}>
                 {serverStatus === 'online' ? '● Online' : '● Offline'}
               </div>
               <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30 text-sm">
                 {sources.length} Sources
               </div>
-              
+
               {/* User Menu */}
               <div className="relative" ref={userMenuRef}>
                 <button
@@ -216,7 +217,7 @@ export default function Dashboard() {
             <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
               <div className="p-6 border-b border-white/10">
                 <h2 className="text-lg font-semibold text-white mb-4">Upload Sources</h2>
-                
+
                 <div className="space-y-3">
                   {/* PDF Upload */}
                   <button
@@ -269,13 +270,9 @@ export default function Dashboard() {
                     <FileCode className="w-5 h-5" />
                     <span>TXT</span>
                   </button>
-
                   {/* Link Upload */}
                   <button
-                    onClick={() => {
-                      const link = prompt('Enter URL (website or YouTube):');
-                      if (link) handleLinkSubmit(link);
-                    }}
+                    onClick={() => setShowLinkModal(true)}
                     disabled={isUploading}
                     className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 disabled:opacity-50 border border-blue-500/30 rounded-xl text-white font-medium transition-all duration-200 flex items-center justify-center space-x-2"
                   >
@@ -287,7 +284,7 @@ export default function Dashboard() {
 
               <div className="p-6 max-h-96 overflow-y-auto">
                 <h3 className="text-sm font-semibold text-gray-400 mb-3">Uploaded Sources</h3>
-                
+
                 {isUploading && (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
@@ -359,11 +356,10 @@ export default function Dashboard() {
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        message.sender === 'user'
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                          : 'bg-white/10 text-white border border-white/10'
-                      }`}
+                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.sender === 'user'
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                        : 'bg-white/10 text-white border border-white/10'
+                        }`}
                     >
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
                       {message.sources && message.sources.length > 0 && (
@@ -424,6 +420,106 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      {/* Link Upload Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-black/95 border border-white/20 rounded-2xl max-w-lg w-full shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <h3 className="text-xl font-bold text-white flex items-center space-x-2">
+                <Link2 className="w-5 h-5 text-blue-400" />
+                <span>Upload from Link</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setShowLinkModal(false);
+                  setLinkInput('');
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              {/* Input */}
+              <input
+                type="url"
+                value={linkInput}
+                onChange={(e) => setLinkInput(e.target.value)}
+                placeholder="https://example.com or youtube.com/watch?v=..."
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && linkInput.trim()) {
+                    handleLinkSubmit(linkInput.trim());
+                    setShowLinkModal(false);
+                    setLinkInput('');
+                  }
+                }}
+              />
+
+              {/* YouTube Warning */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
+                <div className="flex items-start space-x-2">
+                  <Youtube className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-yellow-200 text-sm font-medium mb-1">
+                      YouTube: Captions Only
+                    </p>
+                    <p className="text-yellow-200/70 text-xs mb-2">
+                      Due to detecting Cloud Service as bot by YouTube, downloading videos by yt-dlp is not working but only videos with <span className="bg-black/30 px-1 rounded text-[10px]">[CC]</span> work
+                    </p>
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-1.5 text-xs text-gray-300">
+                        <CheckCircle className="w-3 h-3 text-green-400" />
+                        <span>Educational videos, News, Ted Talks, Music Videos</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Website Info */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
+                <div className="flex items-center space-x-2">
+                  <Globe className="w-5 h-5 text-blue-400" />
+                  <p className="text-blue-200 text-sm">
+                    <span className="font-medium">Websites:</span> Fully supported ✅
+                  </p>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex space-x-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowLinkModal(false);
+                    setLinkInput('');
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (linkInput.trim()) {
+                      handleLinkSubmit(linkInput.trim());
+                      setShowLinkModal(false);
+                      setLinkInput('');
+                    }
+                  }}
+                  disabled={!linkInput.trim() || isUploading}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-medium transition-all"
+                >
+                  Upload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
