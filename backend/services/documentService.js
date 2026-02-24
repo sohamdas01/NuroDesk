@@ -903,48 +903,56 @@ async function getVideoMetadata(videoId) {
   };
 }
 
-// Try to get YouTube captions (NO DOWNLOAD NEEDED!)
+// Use yt-dlp to get captions - NO VIDEO DOWNLOAD
 async function tryGetCaptions(videoId) {
   try {
-    console.log(`📝 Fetching captions for video: ${videoId}...`);
+    console.log(`📝 Fetching captions with yt-dlp for: ${videoId}...`);
     
-    const { YoutubeTranscript } = await import('youtube-transcript');
-
-    const languages = ['en', 'hi', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'ru', 'ar'];
-
-    for (const lang of languages) {
-      try {
-        console.log(`   Trying ${lang.toUpperCase()}...`);
-        
-        const transcript = await YoutubeTranscript.fetchTranscript(videoId, { 
-          lang,
-          timeout: 10000 
-        });
-
-        if (transcript && Array.isArray(transcript) && transcript.length > 0) {
-          const text = transcript
-            .map(item => item?.text || '')
-            .filter(Boolean)
-            .join(' ')
-            .trim();
-
-          if (text.length > 100) {
-            console.log(`   ✅ Found ${lang.toUpperCase()} captions: ${text.length} characters`);
-            return text;
-          }
-        }
-      } catch (err) {
-        console.log(`   ❌ ${lang.toUpperCase()} failed: ${err.message}`);
-        continue;
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    
+    // Get available subtitles list
+    const listCommand = `yt-dlp --list-subs --skip-download "${videoUrl}"`;
+    
+    try {
+      const { stdout } = await execPromise(listCommand, { timeout: 10000 });
+      
+      // Check if any captions exist
+      if (!stdout.includes('Available subtitles') && !stdout.includes('en')) {
+        console.log(`❌ No captions available for this video`);
+        return null;
       }
+    } catch (err) {
+      console.log(`⚠️ Could not check captions: ${err.message}`);
+      return null;
     }
-
-    console.log(`❌ No captions found in any language`);
+    
+    // Try to download English captions as plain text
+    const captionCommand = `yt-dlp --skip-download --write-auto-sub --sub-lang en --sub-format txt --output "temp_caption_${videoId}" "${videoUrl}"`;
+    
+    try {
+      await execPromise(captionCommand, { timeout: 30000 });
+      
+      // Read the caption file
+      const captionFile = `temp_caption_${videoId}.en.txt`;
+      
+      if (fs.existsSync(captionFile)) {
+        const captions = fs.readFileSync(captionFile, 'utf-8');
+        fs.unlinkSync(captionFile); // Clean up
+        
+        if (captions && captions.length > 100) {
+          console.log(`✅ Captions fetched: ${captions.length} characters`);
+          return captions.trim();
+        }
+      }
+    } catch (downloadErr) {
+      console.log(`❌ Caption download failed: ${downloadErr.message}`);
+    }
+    
+    console.log(`❌ No captions found`);
     return null;
-
+    
   } catch (error) {
-    console.error(`❌ Caption fetch error:`, error.message);
-    console.error(`   Full error:`, error);
+    console.error(`❌ Caption error:`, error.message);
     return null;
   }
 }
