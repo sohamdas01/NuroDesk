@@ -722,6 +722,8 @@
 
 
 
+
+
 import fs from 'fs';
 import path from 'path';
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
@@ -735,12 +737,11 @@ import { runOCR, pdfToImages } from './ocrService.js';
 
 const execPromise = promisify(exec);
 
-// Process PDF file
+// Process PDF
 export async function processPDF(filePath, metadata = {}) {
   try {
     const loader = new PDFLoader(filePath);
     const docs = await loader.load();
-
     let extractedText = docs.map(d => d.pageContent).join('\n');
     const NEEDS_OCR = extractedText.length < 500;
 
@@ -748,375 +749,271 @@ export async function processPDF(filePath, metadata = {}) {
       console.log(' Low text detected → running OCR');
       const images = await pdfToImages(filePath);
       const ocrText = await runOCR(images);
-
       if (ocrText.length > extractedText.length) {
-        docs.push(
-          new Document({
-            pageContent: ocrText,
-            metadata: { ...metadata, source: 'ocr', type: 'pdf_ocr' },
-          })
-        );
+        docs.push(new Document({
+          pageContent: ocrText,
+          metadata: { ...metadata, source: 'ocr', type: 'pdf_ocr' }
+        }));
       }
     }
 
     const splitDocs = await textSplitter.splitDocuments(docs);
-    splitDocs.forEach(d => {
-      d.metadata = { ...d.metadata, ...metadata };
-    });
-
+    splitDocs.forEach(d => { d.metadata = { ...d.metadata, ...metadata }; });
     return splitDocs;
   } catch (error) {
     throw new Error(`PDF processing failed: ${error.message}`);
   }
 }
 
-// Process CSV file
+// Process CSV
 export async function processCSV(filePath, metadata = {}) {
   try {
-    if (!fs.existsSync(filePath)) {
-      throw new Error('CSV file not found');
-    }
-
+    if (!fs.existsSync(filePath)) throw new Error('CSV file not found');
     console.log(`Loading CSV: ${filePath}`);
     const loader = new CSVLoader(filePath);
     const docs = await loader.load();
-
-    if (!docs || docs.length === 0) {
-      throw new Error('CSV appears to be empty or has invalid format');
-    }
-
+    if (!docs || docs.length === 0) throw new Error('CSV appears to be empty');
     console.log(` Loaded ${docs.length} rows from CSV`);
     const splitDocs = await textSplitter.splitDocuments(docs);
-    console.log(` Split into ${splitDocs.length} chunks`);
-
-    splitDocs.forEach(doc => {
-      doc.metadata = { ...doc.metadata, ...metadata, type: 'csv' };
-    });
-
+    splitDocs.forEach(doc => { doc.metadata = { ...doc.metadata, ...metadata, type: 'csv' }; });
     return splitDocs;
   } catch (error) {
     throw new Error(`Failed to process CSV: ${error.message}`);
   }
 }
 
-// Process TXT file
+// Process TXT
 export async function processTXT(filePath, metadata = {}) {
   try {
-    if (!fs.existsSync(filePath)) {
-      throw new Error('TXT file not found');
-    }
-
+    if (!fs.existsSync(filePath)) throw new Error('TXT file not found');
     const content = fs.readFileSync(filePath, 'utf-8');
-
-    if (!content || content.trim().length === 0) {
-      throw new Error('TXT file is empty');
-    }
-
-    console.log(`Loaded ${content.length} characters from TXT`);
-
-    const doc = new Document({
-      pageContent: content,
-      metadata: { ...metadata, type: 'txt', source: filePath }
-    });
-
+    if (!content || content.trim().length === 0) throw new Error('TXT file is empty');
+    const doc = new Document({ pageContent: content, metadata: { ...metadata, type: 'txt', source: filePath } });
     const splitDocs = await textSplitter.splitDocuments([doc]);
-    console.log(` Split into ${splitDocs.length} chunks`);
-
-    splitDocs.forEach(doc => {
-      doc.metadata = { ...doc.metadata, ...metadata, type: 'txt' };
-    });
-
+    splitDocs.forEach(doc => { doc.metadata = { ...doc.metadata, ...metadata, type: 'txt' }; });
     return splitDocs;
   } catch (error) {
     throw new Error(`Failed to process TXT: ${error.message}`);
   }
 }
 
-// Extract YouTube video ID
+// Get YouTube video ID
 function getYouTubeVideoId(url) {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
     /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
     /youtube\.com\/shorts\/([^&\n?#]+)/
   ];
-
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1].split('&')[0].split('?')[0];
-    }
+    if (match && match[1]) return match[1].split('&')[0].split('?')[0];
   }
-
-  throw new Error('Invalid YouTube URL format');
+  throw new Error('Invalid YouTube URL');
 }
 
-// Get video metadata using yt-dlp
+// Get metadata
 async function getVideoMetadata(videoId) {
   try {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const command = `yt-dlp --dump-json --no-warnings "${videoUrl}"`;
-
-    const { stdout } = await execPromise(command, {
-      timeout: 30000,
-      maxBuffer: 5 * 1024 * 1024
-    });
-
+    const { stdout } = await execPromise(command, { timeout: 30000, maxBuffer: 5 * 1024 * 1024 });
     const metadata = JSON.parse(stdout);
-
     return {
       title: metadata.title || '',
       channel: metadata.uploader || metadata.channel || '',
       description: metadata.description || '',
       duration: metadata.duration || 0,
-      tags: metadata.tags || [],
+      tags: metadata.tags || []
     };
-
   } catch (err) {
-    console.log(`⚠️ Could not fetch metadata with yt-dlp, using fallback...`);
-
-    // Fallback to oEmbed
     try {
       const oEmbedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
       const response = await fetch(oEmbedUrl);
-
       if (response.ok) {
         const data = await response.json();
-        return {
-          title: data.title || '',
-          channel: data.author_name || '',
-          description: '',
-          duration: 0,
-          tags: [],
-        };
+        return { title: data.title || '', channel: data.author_name || '', description: '', duration: 0, tags: [] };
       }
-    } catch (fallbackErr) {
-      console.log(` Fallback also failed`);
-    }
+    } catch (e) {}
   }
-
-  return {
-    title: '',
-    channel: '',
-    description: '',
-    duration: 0,
-    tags: [],
-  };
+  return { title: '', channel: '', description: '', duration: 0, tags: [] };
 }
 
-// Use yt-dlp to get captions - NO VIDEO DOWNLOAD
-async function tryGetCaptions(videoId) {
-  try {
-    console.log(`📝 Fetching captions with yt-dlp for: ${videoId}...`);
-    
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    
-    // Get available subtitles list
-    const listCommand = `yt-dlp --list-subs --skip-download "${videoUrl}"`;
-    
-    try {
-      const { stdout } = await execPromise(listCommand, { timeout: 10000 });
-      
-      // Check if any captions exist
-      if (!stdout.includes('Available subtitles') && !stdout.includes('en')) {
-        console.log(`❌ No captions available for this video`);
-        return null;
-      }
-    } catch (err) {
-      console.log(`⚠️ Could not check captions: ${err.message}`);
-      return null;
-    }
-    
-    // Try to download English captions as plain text
-    const captionCommand = `yt-dlp --skip-download --write-auto-sub --sub-lang en --sub-format txt --output "temp_caption_${videoId}" "${videoUrl}"`;
-    
-    try {
-      await execPromise(captionCommand, { timeout: 30000 });
-      
-      // Read the caption file
-      const captionFile = `temp_caption_${videoId}.en.txt`;
-      
-      if (fs.existsSync(captionFile)) {
-        const captions = fs.readFileSync(captionFile, 'utf-8');
-        fs.unlinkSync(captionFile); // Clean up
-        
-        if (captions && captions.length > 100) {
-          console.log(`✅ Captions fetched: ${captions.length} characters`);
-          return captions.trim();
-        }
-      }
-    } catch (downloadErr) {
-      console.log(`❌ Caption download failed: ${downloadErr.message}`);
-    }
-    
-    console.log(`❌ No captions found`);
-    return null;
-    
-  } catch (error) {
-    console.error(`❌ Caption error:`, error.message);
-    return null;
-  }
-}
-
-// Format time helper
+// Format time
 function formatTime(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
+  if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Extract YouTube content - CAPTION ONLY MODE
+// ✅ GET CAPTIONS WITH YT-DLP (NO VIDEO DOWNLOAD!)
+async function tryGetCaptions(videoId) {
+  const tempDir = path.join(process.cwd(), 'temp_captions');
+  
+  try {
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const outputTemplate = path.join(tempDir, videoId);
+    
+    console.log(`📝 Fetching captions...`);
+    
+    const command = [
+      'yt-dlp',
+      '--skip-download',
+      '--write-auto-sub',
+      '--write-sub',
+      '--sub-lang', 'en',
+      '--sub-format', 'vtt',
+      '--convert-subs', 'srt',
+      '-o', `"${outputTemplate}"`,
+      `"${videoUrl}"`
+    ].join(' ');
+    
+    await execPromise(command, { timeout: 30000, cwd: tempDir });
+    
+    const possibleFiles = [
+      `${outputTemplate}.en.srt`,
+      `${outputTemplate}.en.vtt`,
+    ];
+    
+    for (const file of possibleFiles) {
+      if (fs.existsSync(file)) {
+        let content = fs.readFileSync(file, 'utf-8');
+        const lines = content.split('\n');
+        const textLines = [];
+        
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed && 
+              !trimmed.match(/^\d+$/) && 
+              !trimmed.match(/^\d{2}:\d{2}:\d{2}/) &&
+              !trimmed.match(/^WEBVTT/) &&
+              !trimmed.match(/^NOTE/) &&
+              !trimmed.includes('-->')) {
+            textLines.push(trimmed);
+          }
+        }
+        
+        const text = textLines.join(' ').trim();
+        try { fs.unlinkSync(file); } catch (e) {}
+        
+        if (text.length > 100) {
+          console.log(`✅ Captions: ${text.length} chars`);
+          return text;
+        }
+      }
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.error(`❌ Caption error: ${error.message}`);
+    return null;
+  } finally {
+    try {
+      const files = fs.readdirSync(tempDir);
+      for (const file of files) {
+        if (file.startsWith(videoId)) {
+          fs.unlinkSync(path.join(tempDir, file));
+        }
+      }
+    } catch (e) {}
+  }
+}
+
+// Fetch YouTube content
 async function fetchYouTubeContent(videoId) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
   try {
-    console.log(`\n🎬 Processing YouTube video: ${videoId}`);
-    
-    // Get metadata
+    console.log(`\n🎬 Processing: ${videoUrl}`);
     const metadata = await getVideoMetadata(videoId);
-    console.log(` 📺 Video: ${metadata.title || videoId}`);
-    console.log(` 👤 Channel: ${metadata.channel || 'Unknown'}`);
-    if (metadata.duration) {
-      console.log(` ⏱️  Duration: ${formatTime(metadata.duration)}`);
-    }
-
-    // Try to get captions
+    console.log(` 📺 ${metadata.title || 'Unknown'}`);
+    console.log(` 👤 ${metadata.channel || 'Unknown'}`);
+    
     const captionText = await tryGetCaptions(videoId);
-
     if (!captionText || captionText.length < 100) {
       throw new Error(
-        `❌ NO CAPTIONS AVAILABLE\n\n` +
-        `This video does not have captions/subtitles.\n\n` +
-        `✅ PLEASE TRY:\n` +
-        `   • Videos with the [CC] icon\n` +
-        `   • Educational content (usually has captions)\n` +
-        `   • News videos (usually have captions)\n` +
-        `   • Popular music videos (often have captions)\n\n` +
-        `🎥 Video: ${metadata.title || videoUrl}\n` +
-        `📺 Channel: ${metadata.channel || 'Unknown'}`
+        `❌ NO CAPTIONS\n\n` +
+        `Video: ${metadata.title || videoUrl}\n` +
+        `Channel: ${metadata.channel || 'Unknown'}\n\n` +
+        `Try videos with [CC] icon:\n` +
+        `• Educational (Khan Academy, Crash Course)\n` +
+        `• News (BBC, CNN)\n` +
+        `• Ted Talks\n` +
+        `• Tutorials`
       );
     }
 
-    console.log(`✅ SUCCESS: Captions found (${captionText.length} characters)\n`);
-
-    // Build content
-    let fullContent = '';
-
-    if (metadata.title) {
-      fullContent += `Title: ${metadata.title}\n`;
-    }
-    if (metadata.channel) {
-      fullContent += `Channel: ${metadata.channel}\n`;
-    }
-    if (metadata.duration) {
-      fullContent += `Duration: ${formatTime(metadata.duration)}\n`;
-    }
-    fullContent += `URL: ${videoUrl}\n`;
-
+    console.log(`✅ SUCCESS: ${captionText.length} chars\n`);
+    
+    let fullContent = `Title: ${metadata.title || 'Unknown'}\n`;
+    fullContent += `Channel: ${metadata.channel || 'Unknown'}\n`;
+    if (metadata.duration) fullContent += `Duration: ${formatTime(metadata.duration)}\n`;
+    fullContent += `URL: ${videoUrl}\n\n`;
     if (metadata.description && metadata.description.length > 50) {
-      fullContent += `\n[Video Description]\n${metadata.description}\n`;
+      fullContent += `[Video Description]\n${metadata.description}\n\n`;
     }
-
-    fullContent += `\n[Captions/Subtitles]\n${captionText}\n`;
-
+    fullContent += `[Captions]\n${captionText}\n`;
     if (metadata.tags && metadata.tags.length > 0) {
       fullContent += `\n[Tags]\n${metadata.tags.slice(0, 10).join(', ')}\n`;
     }
-
-    if (fullContent.length < 200) {
-      throw new Error('Unable to extract meaningful content from this video.');
-    }
-
     return fullContent;
-
   } catch (error) {
-    console.error(`\n❌ YouTube processing error:`, error.message);
+    console.error(`\n❌ Error: ${error.message}`);
     throw error;
   }
 }
 
-// Process YouTube video
+// Process YouTube
 async function processYouTubeVideo(url, metadata) {
   const videoId = getYouTubeVideoId(url);
-
   try {
     const content = await fetchYouTubeContent(videoId);
-
     const doc = new Document({
       pageContent: content,
-      metadata: {
-        ...metadata,
-        source: url,
-        videoId,
-        type: 'youtube',
-        contentLength: content.length,
-      },
+      metadata: { ...metadata, source: url, videoId, type: 'youtube', contentLength: content.length }
     });
-
     return [doc];
   } catch (error) {
-    console.error(`❌ YouTube processing failed:`, error.message);
+    console.error(`❌ YouTube failed: ${error.message}`);
     throw error;
   }
 }
 
-// Process website URL
+// Process website
 async function processWebsite(url, metadata) {
   try {
     const loader = new CheerioWebBaseLoader(url, { selector: 'body' });
     const docs = await loader.load();
-
-    if (!docs || docs.length === 0) {
-      throw new Error('No content found on webpage');
-    }
-
+    if (!docs || docs.length === 0) throw new Error('No content found');
     const content = docs[0].pageContent.trim();
-    if (content.length < 100) {
-      throw new Error('Insufficient content on webpage');
-    }
-
-    docs.forEach(doc => {
-      doc.metadata = { ...doc.metadata, ...metadata, source: url, type: 'website' };
-    });
-
+    if (content.length < 100) throw new Error('Insufficient content');
+    docs.forEach(doc => { doc.metadata = { ...doc.metadata, ...metadata, source: url, type: 'website' }; });
     return docs;
   } catch (error) {
-    console.error(' Website error:', error);
     throw new Error(`Failed to load webpage: ${error.message}`);
   }
 }
 
-// Process URL (YouTube or website)
+// Process URL
 export async function processURL(url, metadata = {}) {
   try {
     new URL(url);
-
     let docs;
-
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       docs = await processYouTubeVideo(url, metadata);
     } else {
       docs = await processWebsite(url, metadata);
     }
-
-    if (!docs || docs.length === 0) {
-      throw new Error('No content extracted from URL');
-    }
-
+    if (!docs || docs.length === 0) throw new Error('No content extracted');
     const splitDocs = await textSplitter.splitDocuments(docs);
-    console.log(`Created ${splitDocs.length} document chunks`);
-
-    splitDocs.forEach(doc => {
-      doc.metadata = { ...doc.metadata, ...metadata };
-    });
-
+    splitDocs.forEach(doc => { doc.metadata = { ...doc.metadata, ...metadata }; });
     return splitDocs;
   } catch (error) {
-    console.error('URL processing error:', error);
     throw new Error(error.message || 'Failed to process URL');
   }
 }
