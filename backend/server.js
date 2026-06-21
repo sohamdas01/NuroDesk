@@ -1,14 +1,21 @@
-
 import dotenv from 'dotenv';
-dotenv.config(); 
+dotenv.config();
 
 import app from './app.js';
 import connectDB from './config/database.js';
+import { initializeQdrant } from './config/qdrant.js';
 
 const PORT = process.env.PORT || 5000;
 
-// Connect DB 
+// Connect to MongoDB
 await connectDB();
+
+// Ensure Qdrant collection exists 
+try {
+  await initializeQdrant();
+} catch (err) {
+  console.error('  Qdrant init warning:', err.message);
+}
 
 // Start server
 app.listen(PORT, () => {

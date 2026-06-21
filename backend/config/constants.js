@@ -1,4 +1,3 @@
-
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -8,7 +7,7 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const FRONTEND_URL = process.env.FRONTEND_URL;
 export const QDRANT_URL = process.env.QDRANT_URL;
 
-export const COLLECTION_NAME = 'NeuroDesk_documents';
+export const COLLECTION_NAME = 'NuroDesk_documents';
 
 export const JWT_SECRET = process.env.JWT_SECRET;
 export const JWT_EXPIRES_IN = '7d';

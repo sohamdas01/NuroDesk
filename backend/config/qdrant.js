@@ -1,14 +1,18 @@
-
 import { QdrantClient } from '@qdrant/js-client-rest';
 
-const QDRANT_URL = process.env.QDRANT_URL ;
-const QDRANT_API_KEY = process.env.QDRANT_API_KEY; 
-const COLLECTION_NAME = 'NeuroDesk_documents';
+const QDRANT_URL_RAW = process.env.QDRANT_URL;
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
+// Qdrant Cloud REST API always listens on port 6333
+const QDRANT_URL = QDRANT_URL_RAW && !QDRANT_URL_RAW.endsWith(':6333')
+  ? `${QDRANT_URL_RAW}:6333`
+  : QDRANT_URL_RAW;
+const COLLECTION_NAME = 'NuroDesk_documents';
 
 // Initialize Qdrant client
 export const qdrantClient = new QdrantClient({
   url: QDRANT_URL,
-  ...(QDRANT_API_KEY && { apiKey: QDRANT_API_KEY }), 
+  ...(QDRANT_API_KEY && { apiKey: QDRANT_API_KEY }),
+  checkCompatibility: false,
 });
 
 //  Initialize Qdrant collection
