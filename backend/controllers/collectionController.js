@@ -1,11 +1,10 @@
 
 import qdrantClient from '../config/qdrant.js';
 import { COLLECTION_NAME } from '../config/constants.js';
-import { initializeQdrant } from '../config/qdrant.js';
+import { deleteUserDocuments } from '../services/vectorService.js';
 
 
   // Get collection information
- 
 export async function getCollectionInfo(req, res, next) {
   try {
     const collectionInfo = await qdrantClient.getCollection(COLLECTION_NAME);
@@ -19,18 +18,15 @@ export async function getCollectionInfo(req, res, next) {
   }
 }
 
-// Reset/delete collection 
+// Reset user's documents 
 export async function resetCollection(req, res, next) {
   try {
-    // Delete collection
-    await qdrantClient.deleteCollection(COLLECTION_NAME);
-
-    // Recreate collection
-    await initializeQdrant();
+    const deletedCount = await deleteUserDocuments(req.user.id);
 
     res.json({
       success: true,
-      message: 'Collection reset successfully',
+      message: `Deleted ${deletedCount} documents for your account`,
+      deletedCount,
     });
   } catch (error) {
     next(error);

@@ -4,8 +4,7 @@ dotenv.config();
 import app from './app.js';
 import connectDB from './config/database.js';
 import { initializeQdrant } from './config/qdrant.js';
-
-const PORT = process.env.PORT || 5000;
+import { PORT } from './config/constants.js';
 
 // Connect to MongoDB
 await connectDB();
@@ -23,5 +22,5 @@ app.listen(PORT, () => {
   console.log('NuroDesk Server Started');
   console.log(` Port: ${PORT}`);
   console.log(` Env: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`jwt secret ${process.env.JWT_SECRET ? 'defined' : 'undefined'}`);
+  console.log('='.repeat(50));
 });

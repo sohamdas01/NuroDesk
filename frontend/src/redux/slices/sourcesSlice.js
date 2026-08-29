@@ -1,7 +1,6 @@
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-
-const API_URL = import.meta.env.VITE_API_URL ;
+import API_URL from '../../utils/api.js';
 
 function getStorageKey(userId, key) {
   return userId ? `user_${userId}_${key}` : key;
@@ -130,19 +129,7 @@ export const uploadTXT = createAsyncThunk(
   }
 );
 
-// //  Upload URL
-// export const uploadURL = createAsyncThunk(
-//   'sources/uploadURL',
-//   async ({ url, token }, { rejectWithValue }) => {
-//     try {
-//       const response = await fetch(`${API_URL}/upload/url`, {
-//         method: 'POST',
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify({ url }),
-//       });
+// Upload URL
 export const uploadURL = createAsyncThunk(
   'sources/uploadURL',
   async ({ url, token }, { rejectWithValue }) => {
@@ -179,12 +166,37 @@ export const uploadURL = createAsyncThunk(
   }
 );
 
+// Delete Source
+export const deleteSource = createAsyncThunk(
+  'sources/deleteSource',
+  async ({ sourceId, sourceName, token }) => {
+    try {
+      if (token && sourceName) {
+        const response = await fetch(`${API_URL}/upload/source/${encodeURIComponent(sourceName)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.warn('Backend delete source warning:', error.message);
+        }
+      }
+      return { id: sourceId };
+    } catch (error) {
+      console.warn('Failed to delete source from backend:', error.message);
+      return { id: sourceId };
+    }
+  }
+);
+
 //  Server health check
 export const checkServerStatus = createAsyncThunk(
   'sources/checkServerStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL.replace('/api', '')}/api/health`);
+      const healthUrl = `${API_URL.replace(/\/api\/?$/, '')}/api/health`;
+      const response = await fetch(healthUrl);
       if (!response.ok) throw new Error('Server offline');
       return 'online';
     } catch {
@@ -296,6 +308,14 @@ const sourcesSlice = createSlice({
       })
       .addCase(checkServerStatus.rejected, (state, action) => {
         state.serverStatus = action.payload;
+      })
+      // Delete source
+      .addCase(deleteSource.fulfilled, (state, action) => {
+        state.items = state.items.filter((s) => s.id !== action.payload.id);
+        if (state.currentUserId) {
+          const key = getStorageKey(state.currentUserId, 'sources');
+          localStorage.setItem(key, JSON.stringify(state.items));
+        }
       });
   },
 });

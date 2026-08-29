@@ -1,4 +1,4 @@
-# NeuroDesk 🧠
+# NuroDesk 🧠
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-19.2-blue?logo=react)
@@ -6,7 +6,7 @@
 ![OpenAI](https://img.shields.io/badge/OpenAI-Integrated-black?logo=openai)
 ![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-red?logo=qdrant)
 
-NeuroDesk is a full-stack, AI-powered document intelligence and chat platform. By leveraging Retrieval-Augmented Generation (RAG), NeuroDesk allows users to upload documents, process media, extract text via OCR, and intuitively query their data through a conversational AI interface.
+NuroDesk is a full-stack, AI-powered document intelligence and chat platform. By leveraging Retrieval-Augmented Generation (RAG), NuroDesk allows users to upload documents, process media, extract text via OCR, and intuitively query their data through a conversational AI interface.
 
 ---
 
@@ -75,8 +75,8 @@ C:\NeuroDesk_new\
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/NeuroDesk.git
-cd NeuroDesk
+git clone https://github.com/yourusername/NuroDesk.git
+cd NuroDesk
 ```
 
 ### 2. Backend Setup
@@ -89,22 +89,22 @@ npm install
 Create a `.env` file in the `backend/` directory:
 ```env
 # Server
-PORT=5000
+PORT=3001
+NODE_ENV=development
 
 # Database
-MONGO_URI=your_mongodb_connection_string
+MONGODB_URI=your_mongodb_connection_string
 
 # Authentication
-JWT_SECRET=your_jwt_secret_key
+JWT_SECRET=generate-a-strong-random-secret-here
 
 # AI & Vector DB
 OPENAI_API_KEY=your_openai_api_key
 QDRANT_URL=your_qdrant_url
 QDRANT_API_KEY=your_qdrant_api_key
 
-# Optional: Media Processing APIs
-DEEPGRAM_API_KEY=your_deepgram_key
-ASSEMBLYAI_API_KEY=your_assemblyai_key
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:5173
 ```
 
 Start the backend server:
@@ -121,7 +121,7 @@ npm install
 
 Create a `.env` file in the `frontend/` directory:
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:3001/api
 ```
 
 Start the frontend development server:
@@ -146,7 +146,7 @@ docker-compose up -d
 
 ## 🌐 Deployment
 
-NeuroDesk is configured for easy deployment:
+NuroDesk is configured for easy deployment:
 - **Backend:** Can be deployed to [Render](https://render.com/) using the included `render.yaml`.
 - **Frontend:** Pre-configured for deployment on [Vercel](https://vercel.com/) via `vercel.json`.
 

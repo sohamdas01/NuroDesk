@@ -1,11 +1,7 @@
 
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET ;
-if(!JWT_SECRET) {
-  console.error(' JWT_SECRET is not defined in environment variables');
-}
+import { JWT_SECRET } from '../config/constants.js';
 
 export async function registerUser({ name, email, password }) {
   try {

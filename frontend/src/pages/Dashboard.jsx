@@ -2,28 +2,28 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Send, File, Link2, FileText, Trash2, Loader2, MessageSquare, AlertCircle, LogOut, User, FileCode, Youtube, Globe, X, CheckCircle } from 'lucide-react';
-import { logout, selectUser, selectToken } from '../redux/slices/authSlice.js';
+import { logoutAndClear, selectUser, selectToken } from '../redux/slices/authSlice.js';
 import {
   uploadPDF,
   uploadCSV,
   uploadURL,
   uploadTXT,
-  removeSource,
+  deleteSource,
   checkServerStatus,
   selectSources,
   selectSourcesUploading,
   selectUploadError,
   selectServerStatus,
+  initializeSources,
 } from '../redux/slices/sourcesSlice.js';
 import {
   sendMessage,
   addUserMessage,
-  clearMessages,
+  initializeChat,
   selectMessages,
   selectChatLoading,
   selectChatError,
 } from '../redux/slices/chatSlice.js';
-import { initializeSources } from '../redux/slices/sourcesSlice.js';
 
 export default function Dashboard() {
   const dispatch = useDispatch();
@@ -44,7 +44,9 @@ export default function Dashboard() {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkInput, setLinkInput] = useState('');
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
+  const csvInputRef = useRef(null);
+  const txtInputRef = useRef(null);
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.id) {
       dispatch(initializeSources(user.id));
+      dispatch(initializeChat(user.id));
     }
   }, [user, dispatch]);
 
@@ -95,8 +98,9 @@ export default function Dashboard() {
     dispatch(uploadURL({ url, token }));
   };
 
-  const handleRemoveSource = (id) => {
-    dispatch(removeSource(id));
+  const handleRemoveSource = (source) => {
+    if (!source) return;
+    dispatch(deleteSource({ sourceId: source.id, sourceName: source.name, token }));
   };
 
   const handleSendMessage = async () => {
@@ -106,20 +110,26 @@ export default function Dashboard() {
       return;
     }
 
-    dispatch(addUserMessage(inputMessage));
-    const currentInput = inputMessage;
+    const currentInput = inputMessage.trim();
+    const userMsg = {
+      id: Date.now(),
+      text: currentInput,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+    };
+
+    dispatch(addUserMessage(currentInput));
     setInputMessage('');
 
     dispatch(sendMessage({
       message: currentInput,
       token,
-      history: messages,
+      history: [...messages, userMsg],
     }));
   };
 
   const handleLogout = () => {
-    dispatch(logout());
-    dispatch(clearMessages());
+    dispatch(logoutAndClear());
   };
 
   const getFileIcon = (type) => {
@@ -171,6 +181,9 @@ export default function Dashboard() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
+                  aria-label="User menu"
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="true"
                   className="flex items-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3 py-2 transition-all duration-200"
                 >
                   <User className="w-5 h-5 text-white" />
@@ -178,13 +191,14 @@ export default function Dashboard() {
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-black/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden z-[100]">
+                  <div role="menu" className="absolute right-0 mt-2 w-48 bg-black/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden z-[100]">
                     <div className="p-3 border-b border-white/10">
                       <p className="text-white text-sm font-medium truncate">{user?.name}</p>
                       <p className="text-gray-400 text-xs truncate">{user?.email}</p>
                     </div>
                     <button
                       onClick={handleLogout}
+                      role="menuitem"
                       className="w-full px-3 py-2 text-left text-red-400 hover:bg-white/10 transition-colors flex items-center space-x-2"
                     >
                       <LogOut className="w-4 h-4" />
@@ -221,59 +235,75 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   {/* PDF Upload */}
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => pdfInputRef.current?.click()}
                     disabled={isUploading}
+                    aria-label="Upload PDF"
                     className="w-full px-4 py-3 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 disabled:opacity-50 border border-red-500/30 rounded-xl text-white font-medium transition-all duration-200 flex items-center justify-center space-x-2"
                   >
                     <FileText className="w-5 h-5" />
                     <span>PDF</span>
                   </button>
                   <input
-                    ref={fileInputRef}
+                    ref={pdfInputRef}
                     type="file"
                     accept=".pdf"
                     multiple
-                    onChange={(e) => handleFileUpload(e.target.files, 'pdf')}
+                    onChange={(e) => {
+                      handleFileUpload(e.target.files, 'pdf');
+                      e.target.value = '';
+                    }}
                     className="hidden"
                   />
 
                   {/* CSV Upload */}
                   <button
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.accept = '.csv';
-                      input.multiple = true;
-                      input.onchange = (e) => handleFileUpload(e.target.files, 'csv');
-                      input.click();
-                    }}
+                    onClick={() => csvInputRef.current?.click()}
                     disabled={isUploading}
+                    aria-label="Upload CSV"
                     className="w-full px-4 py-3 bg-gradient-to-r from-green-500/20 to-green-600/20 hover:from-green-500/30 hover:to-green-600/30 disabled:opacity-50 border border-green-500/30 rounded-xl text-white font-medium transition-all duration-200 flex items-center justify-center space-x-2"
                   >
                     <File className="w-5 h-5" />
                     <span>CSV</span>
                   </button>
-
-                  {/*  TXT Upload */}
-                  <button
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.accept = '.txt';
-                      input.multiple = true;
-                      input.onchange = (e) => handleFileUpload(e.target.files, 'txt');
-                      input.click();
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv"
+                    multiple
+                    onChange={(e) => {
+                      handleFileUpload(e.target.files, 'csv');
+                      e.target.value = '';
                     }}
+                    className="hidden"
+                  />
+
+                  {/* TXT Upload */}
+                  <button
+                    onClick={() => txtInputRef.current?.click()}
                     disabled={isUploading}
+                    aria-label="Upload TXT"
                     className="w-full px-4 py-3 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 disabled:opacity-50 border border-yellow-500/30 rounded-xl text-white font-medium transition-all duration-200 flex items-center justify-center space-x-2"
                   >
                     <FileCode className="w-5 h-5" />
                     <span>TXT</span>
                   </button>
+                  <input
+                    ref={txtInputRef}
+                    type="file"
+                    accept=".txt"
+                    multiple
+                    onChange={(e) => {
+                      handleFileUpload(e.target.files, 'txt');
+                      e.target.value = '';
+                    }}
+                    className="hidden"
+                  />
+
                   {/* Link Upload */}
                   <button
                     onClick={() => setShowLinkModal(true)}
                     disabled={isUploading}
+                    aria-label="Upload link"
                     className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 disabled:opacity-50 border border-blue-500/30 rounded-xl text-white font-medium transition-all duration-200 flex items-center justify-center space-x-2"
                   >
                     <Link2 className="w-5 h-5" />
@@ -317,7 +347,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleRemoveSource(source.id)}
+                          onClick={() => handleRemoveSource(source)}
+                          aria-label={`Remove source ${source.name}`}
                           className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all duration-200 ml-2"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -398,13 +429,15 @@ export default function Dashboard() {
                     type="text"
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                     placeholder="ask me anything...."
+                    aria-label="Ask a question about your documents"
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     disabled={isChatLoading || serverStatus !== 'online'}
                   />
                   <button
                     onClick={handleSendMessage}
+                    aria-label="Send message"
                     disabled={isChatLoading || !inputMessage.trim() || serverStatus !== 'online' || sources.length === 0}
                     className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-200 flex items-center space-x-2"
                   >
@@ -413,7 +446,7 @@ export default function Dashboard() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                  All copyright reserved @2026. Made with ❤️ by NeuroDesk.
+                  All copyright reserved @2026. Made with ❤️ by NuroDesk.
                 </p>
               </div>
             </div>
@@ -451,7 +484,7 @@ export default function Dashboard() {
                 placeholder="https://example.com or youtube.com/watch?v=..."
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
                 autoFocus
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' && linkInput.trim()) {
                     handleLinkSubmit(linkInput.trim());
                     setShowLinkModal(false);

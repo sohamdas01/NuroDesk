@@ -4,13 +4,23 @@ services:
     runtime: node
     region: singapore
     plan: free
+    rootDir: backend
     buildCommand: |
-      cd backend
       pip install --break-system-packages yt-dlp
       npm install --legacy-peer-deps
-    startCommand: cd backend && node server.js
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 1000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

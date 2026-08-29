@@ -5,12 +5,7 @@ import { signupValidation, loginValidation, checkValidation } from '../utils/val
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-
-// Public routes
 router.post('/signup', signupValidation, checkValidation, signup);
 router.post('/login', loginValidation, checkValidation, login);
-
-// Protected routes
-router.get('/me', authenticateToken, getCurrentUser);
 
 export default router;

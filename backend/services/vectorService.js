@@ -4,7 +4,6 @@ import qdrantClient, { COLLECTION_NAME } from '../config/qdrant.js';
 import { v4 as uuidv4 } from 'uuid';
 
 //  Store documents DIRECTLY in Qdrant
- 
 export async function storeDocuments(documents, userId) {
   try {
     if (!documents || documents.length === 0) {
@@ -13,32 +12,29 @@ export async function storeDocuments(documents, userId) {
 
     console.log(` Storing ${documents.length} chunks in Qdrant for user ${userId}...`);
 
-    const points = [];
+    const texts = documents.map(doc => doc.pageContent);
+    const docEmbeddings = await embeddings.embedDocuments(texts);
 
-    for (const doc of documents) {
-      const embedding = await embeddings.embedQuery(doc.pageContent);
+    const points = documents.map((doc, idx) => ({
+      id: uuidv4(),
+      vector: docEmbeddings[idx],
+      payload: {
+        userId: userId,
+        text: doc.pageContent,
+        type: doc.metadata?.type || doc.type || 'unknown',
+        source: doc.metadata?.source || doc.metadata?.filename || doc.metadata?.url || 'unknown',
+        uploadedAt: doc.metadata?.uploadedAt || new Date().toISOString(),
+        
+        ...(doc.metadata?.filename && { filename: doc.metadata.filename }),
+        ...(doc.metadata?.url && { url: doc.metadata.url }),
+        ...(doc.metadata?.videoId && { videoId: doc.metadata.videoId }),
+        ...(doc.metadata?.loc && { loc: doc.metadata.loc }),
+      },
+    }));
 
-      const point = {
-        id: uuidv4(),
-        vector: embedding,
-        payload: {
-          userId: userId,
-          text: doc.pageContent,
-          type: doc.metadata?.type || doc.type || 'unknown',
-          source: doc.metadata?.source || doc.metadata?.filename || doc.metadata?.url || 'unknown',
-          uploadedAt: doc.metadata?.uploadedAt || new Date().toISOString(),
-          
-          ...(doc.metadata?.filename && { filename: doc.metadata.filename }),
-          ...(doc.metadata?.url && { url: doc.metadata.url }),
-          ...(doc.metadata?.videoId && { videoId: doc.metadata.videoId }),
-          ...(doc.metadata?.loc && { loc: doc.metadata.loc }),
-        },
-      };
-
-      points.push(point);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Sample payload:', JSON.stringify(points[0].payload, null, 2));
     }
-
-    console.log('Sample payload:', JSON.stringify(points[0].payload, null, 2));
 
     await qdrantClient.upsert(COLLECTION_NAME, {
       wait: true,
@@ -158,4 +154,34 @@ export async function deleteUserDocuments(userId) {
   }
 }
 
-export default { storeDocuments, createRetriever, deleteUserDocuments };
+//  Delete documents by source name for a specific user
+export async function deleteDocumentsBySource(userId, sourceName) {
+  try {
+    const scrollResult = await qdrantClient.scroll(COLLECTION_NAME, {
+      filter: {
+        must: [
+          { key: 'userId', match: { value: userId } },
+          { key: 'source', match: { value: sourceName } },
+        ],
+      },
+      limit: 10000,
+      with_payload: false,
+      with_vector: false,
+    });
+
+    const pointIds = scrollResult.points.map(point => point.id);
+
+    if (pointIds.length > 0) {
+      await qdrantClient.delete(COLLECTION_NAME, {
+        points: pointIds,
+      });
+      console.log(`Deleted ${pointIds.length} documents for source '${sourceName}' (user ${userId})`);
+      return pointIds.length;
+    }
+    return 0;
+  } catch (error) {
+    throw new Error(`Failed to delete documents by source: ${error.message}`);
+  }
+}
+
+export default { storeDocuments, createRetriever, deleteUserDocuments, deleteDocumentsBySource };

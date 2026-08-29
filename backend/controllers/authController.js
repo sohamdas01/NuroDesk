@@ -39,10 +39,9 @@ export async function login(req, res, next) {
 
 
   // Get current user info
- 
 export async function getCurrentUser(req, res, next) {
   try {
-    const user = await getUserById(req.user.id); // use id from token middleware
+    const user = await getUserById(req.user.id); 
 
     if (!user) {
       return res.status(404).json({

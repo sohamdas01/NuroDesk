@@ -1,8 +1,13 @@
 {
   "ignore": [
     "temp/*",
+    "temp_audio/*",
+    "temp_captions/*",
+    "temp_ocr/*",
     "uploads/*",
     "data/*",
+    "*-player-script.js",
+    "player-*.js",
     "*.log",
     "*.js.map"
   ],

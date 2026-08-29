@@ -1,7 +1,6 @@
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import API_URL from '../../utils/api.js';
 
 // Load user from localStorage
 const loadUserFromStorage = () => {
@@ -90,14 +89,6 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.error = null;
-      
-      //  Clear ALL user data on logout
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('sources'); 
-      localStorage.removeItem('chatMessages'); 
-      
-      console.log(' User logged out - all data cleared');
     },
     clearError: (state) => {
       state.error = null;
@@ -114,10 +105,6 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.error = null;
-        
-        //  Clear previous user's data when new user logs in
-        localStorage.removeItem('sources');
-        localStorage.removeItem('chatMessages');
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
@@ -132,10 +119,6 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.error = null;
-        
-        // Clear any existing data for new user
-        localStorage.removeItem('sources');
-        localStorage.removeItem('chatMessages');
       })
       .addCase(signupUser.rejected, (state, action) => {
         state.loading = false;
@@ -153,3 +136,9 @@ export const selectAuthLoading = (state) => state.auth.loading;
 export const selectAuthError = (state) => state.auth.error;
 
 export default authSlice.reducer;
+
+export const logoutAndClear = () => (dispatch) => {
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  dispatch(logout());
+};

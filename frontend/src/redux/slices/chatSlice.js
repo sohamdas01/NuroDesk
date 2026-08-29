@@ -1,11 +1,15 @@
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import API_URL from '../../utils/api.js';
 
-const API_URL = import.meta.env.VITE_API_URL ;
+function getChatStorageKey(userId) {
+  return userId ? `user_${userId}_chatMessages` : 'chatMessages';
+}
 
-const loadMessagesFromStorage = () => {
+const loadMessagesFromStorage = (userId) => {
   try {
-    const messages = localStorage.getItem('chatMessages');
+    const key = getChatStorageKey(userId);
+    const messages = localStorage.getItem(key) || (!userId ? localStorage.getItem('chatMessages') : null);
     return messages ? JSON.parse(messages) : [];
   } catch (error) {
     console.error('Error loading messages from storage:', error);
@@ -14,9 +18,10 @@ const loadMessagesFromStorage = () => {
 };
 
 const initialState = {
-  messages: loadMessagesFromStorage(),
+  messages: [],
   loading: false,
   error: null,
+  currentUserId: null,
 };
 
 export const sendMessage = createAsyncThunk(
@@ -50,9 +55,7 @@ export const sendMessage = createAsyncThunk(
         text: data.answer,
         sender: 'ai',
         timestamp: new Date().toISOString(),
-        // sources: data.sources.map(s =>
-        //   s.metadata.filename || s.metadata.url || s.metadata.source
-        sources: data.sources.map(s => s.name)
+        sources: (data.sources || []).map(s => s?.name || s)
       };
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
@@ -64,6 +67,11 @@ const chatSlice = createSlice({
   name: 'chat',
   initialState,
   reducers: {
+    initializeChat: (state, action) => {
+      const userId = action.payload;
+      state.currentUserId = userId;
+      state.messages = loadMessagesFromStorage(userId);
+    },
     addUserMessage: (state, action) => {
       const userMessage = {
         id: Date.now(),
@@ -72,11 +80,13 @@ const chatSlice = createSlice({
         timestamp: new Date().toISOString(),
       };
       state.messages.push(userMessage);
-      localStorage.setItem('chatMessages', JSON.stringify(state.messages));
+      const key = getChatStorageKey(state.currentUserId);
+      localStorage.setItem(key, JSON.stringify(state.messages));
     },
     clearMessages: (state) => {
       state.messages = [];
-      localStorage.removeItem('chatMessages');
+      const key = getChatStorageKey(state.currentUserId);
+      localStorage.removeItem(key);
     },
     clearChatError: (state) => {
       state.error = null;
@@ -91,26 +101,45 @@ const chatSlice = createSlice({
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.loading = false;
         state.messages.push(action.payload);
-        localStorage.setItem('chatMessages', JSON.stringify(state.messages));
+        const key = getChatStorageKey(state.currentUserId);
+        localStorage.setItem(key, JSON.stringify(state.messages));
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || 'Failed to send message';
 
-        const last = state.messages[state.messages.length - 1];
-        if (last?.sender === 'user') {
-          state.messages.pop();
-        }
+        state.messages.push({
+          id: Date.now() + 1,
+          text: 'Sorry, I encountered an error while processing your request. Please try again.',
+          sender: 'ai',
+          isError: true,
+          timestamp: new Date().toISOString(),
+        });
 
-        localStorage.setItem('chatMessages', JSON.stringify(state.messages));
+        const key = getChatStorageKey(state.currentUserId);
+        localStorage.setItem(key, JSON.stringify(state.messages));
       });
   },
 });
 
-export const { addUserMessage, clearMessages, clearChatError } = chatSlice.actions;
+export const { initializeChat, addUserMessage, clearMessages, clearChatError } = chatSlice.actions;
 
 export const selectMessages = (state) => state.chat.messages;
 export const selectChatLoading = (state) => state.chat.loading;
 export const selectChatError = (state) => state.chat.error;
 
 export default chatSlice.reducer;
+
+// Persistence helper: sync chat messages to localStorage
+export const persistChatMessages = () => (dispatch, getState) => {
+  const { messages, currentUserId } = getState().chat;
+  const key = getChatStorageKey(currentUserId);
+  localStorage.setItem(key, JSON.stringify(messages));
+};
+
+export const clearMessagesAndPersist = () => (dispatch, getState) => {
+  const { currentUserId } = getState().chat;
+  dispatch(clearMessages());
+  const key = getChatStorageKey(currentUserId);
+  localStorage.removeItem(key);
+};

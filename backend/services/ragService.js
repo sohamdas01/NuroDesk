@@ -36,85 +36,9 @@ function buildSystemPrompt(docs, history, query) {
 
   // Determine query type and instructions
   let specificInstructions = '';
-  
-//   // Website/HTML content queries
-//   if (docTypes.includes('url') && (
-//       lowerQuery.includes('what is written') ||
-//       lowerQuery.includes('code at the top') ||
-//       lowerQuery.includes('how to install'))) {
-//     specificInstructions = `
-//    CRITICAL INSTRUCTION FOR THIS QUERY:
+  const hasWebOrMediaContent = docTypes.some(t => ['url', 'youtube', 'website', 'link'].includes(t));
 
-// The documents contain WEB/HTML CONTENT. You MUST extract the actual visible text, ignoring HTML noise.
-
-// HOW TO READ WEB CONTENT:
-// 1. IGNORE: CSS classes (text-4xl, text-white, flex, etc.), HTML tags, divs, spans
-// 2. EXTRACT: The actual readable text between/after the noise
-// 3. Example from content:
-//    - Raw: "text-4xl text-white tracking-tighterRapidly build modern websites"
-//    - Extract: "Rapidly build modern websites"
-//    - Raw: "<div class="flex">Install now</div>"
-//    - Extract: "Install now"
-
-// The user is asking about WEB CONTENT. Look carefully through the messy HTML and find the ACTUAL TEXT they're asking about. 
-// Even if you see lots of CSS classes and HTML tags, the real text IS THERE - extract it!
-
-// For code/installation queries: Look for commands like "npm install", "yarn add", etc. and quote them EXACTLY.`;
-//   }
-  
-//   // Exact content queries (PDF, TXT, CSV)
-//   else if (lowerQuery.includes('exact') || 
-//            lowerQuery.includes('word for word') ||
-//            lowerQuery.includes('raw content') ||
-//            lowerQuery.includes('what are') ||
-//            lowerQuery.includes('criteria') ||
-//            lowerQuery.includes('list')) {
-//     specificInstructions = `
-//  CRITICAL INSTRUCTION FOR THIS QUERY:
-
-// The user wants EXACT CONTENT from the document.
-
-// YOU MUST:
-// 1. Quote the relevant text EXACTLY as it appears
-// 2. Do NOT paraphrase or interpret
-// 3. Do NOT add your own explanations
-// 4. Copy word-for-word from the documents
-
-// Example:
-// Document: "The criteria are: 1. Clearly Defined Objectives 2. Appropriate Research Design"
-// User asks: "what are the criteria?"
-// CORRECT answer: "The criteria are: 1. Clearly Defined Objectives 2. Appropriate Research Design"
-// WRONG answer: "The criteria include having clear objectives and good design" (too interpretive)`;
-//   }
-  
-//   // Full lyrics query (COPYRIGHT PROTECTION)
-//   else if (lowerQuery.includes('full lyrics') || 
-//            lowerQuery.includes('complete lyrics') ||
-//            lowerQuery.includes('entire song')) {
-//     specificInstructions = `
-//  COPYRIGHT PROTECTION ACTIVE:
-
-// The user is asking for COMPLETE song lyrics. This is copyrighted content.
-
-// YOU MUST:
-// 1. Provide SHORT excerpts ONLY (2-3 lines maximum)
-// 2. Explain you cannot provide complete copyrighted lyrics
-// 3. Describe the song's themes instead
-// 4. Cite the source where full lyrics can be found
-
-// DO NOT reproduce the entire song text, even if it's in the documents.`;
-//   }
-  
-//   // Partial lyrics query (OK)
-//   else if (lowerQuery.includes('lyrics') || lowerQuery.includes('song')) {
-//     specificInstructions = `
-// For song lyrics queries:
-// - Short excerpts (1-2 lines) are OK
-// - If asking for "full/complete" lyrics, refuse and explain copyright
-// - Otherwise, provide the excerpts available in the transcription`;
-//   }
-
-if (docTypes.includes('url')) {
+  if (hasWebOrMediaContent) {
   
   // For YouTube/Video content with transcriptions
   if (lowerQuery.includes('lyrics') || lowerQuery.includes('song')) {
@@ -339,9 +263,7 @@ ${query}
 YOUR ANSWER (follow the specific instructions above):`;
 }
 
-/**
- * Main RAG query handler
- */
+ //Main RAG query handler
  async function processRAGQuery({ query, history, userId }) {
   try {
     console.log(` Query for user ${userId}: ${query}`);

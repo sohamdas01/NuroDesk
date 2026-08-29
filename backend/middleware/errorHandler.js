@@ -33,10 +33,12 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Default error
-  res.status(err.status || 500).json({
+
+  const statusCode = err.status || 500;
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: isProduction && statusCode === 500 ? 'Internal server error' : (err.message || 'Internal server error'),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

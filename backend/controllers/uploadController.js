@@ -1,4 +1,3 @@
-
 import fs from 'fs';
 import {
   processPDF,
@@ -60,7 +59,6 @@ export async function uploadPDF(req, res, next) {
 
 
   // Handle CSV upload
-
 export async function uploadCSV(req, res, next) {
   try {
     if (!req.user) {
@@ -107,7 +105,6 @@ export async function uploadCSV(req, res, next) {
 }
 
   // Handle TXT upload
- 
 export async function uploadTXT(req, res, next) {
   try {
     
@@ -163,7 +160,6 @@ export async function uploadTXT(req, res, next) {
 
 
   // Handle URL upload
- 
 export async function uploadURLHandler(req, res, next) {
   try {
     if (!req.user) {
@@ -205,3 +201,28 @@ export async function uploadURLHandler(req, res, next) {
   }
 }
 
+
+// Handle source deletion
+export async function deleteSource(req, res, next) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { sourceName } = req.params;
+    if (!sourceName) {
+      return res.status(400).json({ success: false, message: 'Source name is required' });
+    }
+
+    const { deleteDocumentsBySource } = await import('../services/vectorService.js');
+    const deletedCount = await deleteDocumentsBySource(req.user.id, decodeURIComponent(sourceName));
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} document chunks`,
+      deletedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

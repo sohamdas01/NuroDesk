@@ -1,12 +1,13 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { COLLECTION_NAME } from './constants.js';
 
 const QDRANT_URL_RAW = process.env.QDRANT_URL;
 const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
-// Qdrant Cloud REST API always listens on port 6333
-const QDRANT_URL = QDRANT_URL_RAW && !QDRANT_URL_RAW.endsWith(':6333')
+
+const isCloudOrHttps = QDRANT_URL_RAW?.includes('cloud.qdrant.io') || QDRANT_URL_RAW?.startsWith('https://');
+const QDRANT_URL = (!isCloudOrHttps && QDRANT_URL_RAW && !QDRANT_URL_RAW.match(/:\d+$/))
   ? `${QDRANT_URL_RAW}:6333`
   : QDRANT_URL_RAW;
-const COLLECTION_NAME = 'NuroDesk_documents';
 
 // Initialize Qdrant client
 export const qdrantClient = new QdrantClient({
@@ -31,6 +32,7 @@ export async function initializeQdrant() {
           distance: 'Cosine',
         },
       });
+      
       console.log(` Collection ${COLLECTION_NAME} created`);
     } else {
       console.log(` Collection ${COLLECTION_NAME} already exists`);
