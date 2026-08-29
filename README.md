@@ -62,6 +62,7 @@ C:\NeuroDesk_new\
 ├── docker-compose.yml        # Docker configuration for multi-container setup
 └── render.yaml               # Render deployment configuration
 ```
+<<<<<<< HEAD
 
 ---
 
@@ -144,6 +145,8 @@ docker-compose up -d
 
 ---
 
+=======
+>>>>>>> 7833f0c623c4febd7afcafa3f8fc5d111b9bb7e2
 ## 🌐 Deployment
 
 NuroDesk is configured for easy deployment:
